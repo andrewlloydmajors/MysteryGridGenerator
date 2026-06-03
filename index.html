@@ -685,10 +685,14 @@ document.getElementById('btn-worksheet').addEventListener('click', () => {
     ctx.restore();
   }
 
-  // Name — occupies roughly the top 18% of the page height
-  sidebarField('Name', PH * 0.09, 240);
-  // Period — next band down
-  sidebarField('Period', PH * 0.21, 130);
+  // Name and Period sit in the top portion of the sidebar.
+  // In rotated space the underline extends *downward on the page*, so
+  // lineLen must not exceed the gap between the two cy positions.
+  const nameY   = PH * 0.15;
+  const periodY = PH * 0.27;
+  const fieldGap = periodY - nameY;
+  sidebarField('Name',   nameY,   fieldGap - 14);
+  sidebarField('Period', periodY, fieldGap * 0.68);
 
   // "Mystery Grid Drawing" title — centred in the lower 2/3 of the sidebar
   ctx.save();
