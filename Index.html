@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mystery Grid Drawing Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1a1a18;
+    --paper: #f7f4ef;
+    --paper-2: #efeae1;
+    --accent: #c45c2a;
+    --accent-light: #f0e4da;
+    --border: #ccc7bb;
+    --muted: #7a7468;
+    --radius: 10px;
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'DM Sans', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 3rem 2rem 2.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      0deg, transparent, transparent 39px, rgba(255,255,255,0.04) 39px, rgba(255,255,255,0.04) 40px
+    ), repeating-linear-gradient(
+      90deg, transparent, transparent 39px, rgba(255,255,255,0.04) 39px, rgba(255,255,255,0.04) 40px
+    );
+    pointer-events: none;
+  }
+  header h1 {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    position: relative;
+  }
+  header p {
+    margin-top: 0.6rem;
+    font-size: 1rem;
+    font-weight: 300;
+    opacity: 0.72;
+    position: relative;
+    max-width: 560px;
+    margin-inline: auto;
+  }
+  .header-tag {
+    display: inline-block;
+    margin-bottom: 1rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    background: var(--accent);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 2px;
+    position: relative;
+  }
+
+  /* ── Main layout ── */
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+
+  /* ── Card ── */
+  .card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+  }
+  .card-title {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin-bottom: 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title .step-num {
+    width: 26px; height: 26px;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 50%;
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 500;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  /* ── Upload zone ── */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 2.5rem 1rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    background: var(--paper);
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+  .upload-zone svg { width: 40px; height: 40px; stroke: var(--muted); margin-bottom: 10px; }
+  .upload-zone p { color: var(--muted); font-size: 0.9rem; }
+  .upload-zone p strong { color: var(--ink); }
+  #file-input { display: none; }
+
+  #preview-wrap { display: none; align-items: center; gap: 1.25rem; margin-top: 1rem; flex-wrap: wrap; }
+  #preview-img {
+    width: 100px; height: 100px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  #preview-info { flex: 1; min-width: 160px; }
+  #preview-info strong { display: block; font-size: 0.9rem; word-break: break-all; }
+  #preview-info span { font-size: 0.82rem; color: var(--muted); }
+  .change-link { font-size: 0.82rem; color: var(--accent); cursor: pointer; text-decoration: underline; border: none; background: none; font-family: inherit; margin-top: 4px; display: inline-block; }
+
+  /* ── Controls ── */
+  .controls-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 0.8rem; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+  .field input[type=number], .field select {
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink);
+    appearance: none;
+    outline: none;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  .field input:focus, .field select:focus { border-color: var(--accent); }
+  .field input[type=color] {
+    padding: 2px 4px;
+    height: 38px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--paper);
+    cursor: pointer;
+    width: 100%;
+  }
+
+  /* ── Tile size ── */
+  .tile-size-row { display: flex; align-items: center; gap: 12px; margin-top: 0.5rem; }
+  .tile-size-row label { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+  .tile-size-row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .tile-size-row span { font-size: 0.82rem; font-weight: 500; min-width: 40px; }
+
+  /* ── Generate button ── */
+  .btn-primary {
+    font-family: var(--font-body);
+    font-size: 1rem;
+    font-weight: 500;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 12px 32px;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .btn-primary:hover { background: #b04d22; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-primary:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    font-weight: 400;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 22px;
+    cursor: pointer;
+    transition: background 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .btn-secondary:hover { background: var(--paper-2); }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
+
+  /* ── Output ── */
+  #output-section { display: none; }
+  .output-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  @media (max-width: 640px) { .output-grid { grid-template-columns: 1fr; } }
+  .output-panel {}
+  .panel-label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+  .canvas-wrap {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: #fff;
+  }
+  .canvas-wrap canvas { display: block; width: 100%; height: auto; }
+
+  #status-msg {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 0.75rem;
+    min-height: 18px;
+  }
+
+  /* ── How to use ── */
+  .how-to {
+    background: var(--paper-2);
+    border-radius: var(--radius);
+    padding: 1.5rem 1.75rem;
+    margin-top: 1rem;
+  }
+  .how-to h2 {
+    font-family: var(--font-display);
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.9rem;
+  }
+  .how-to ol { padding-left: 1.4rem; }
+  .how-to li { font-size: 0.88rem; color: var(--muted); margin-bottom: 0.4rem; }
+  .how-to li strong { color: var(--ink); }
+
+  /* ── Footer ── */
+  footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-tag">Art Teacher Tool</div>
+  <h1>Mystery Grid Drawing Maker</h1>
+  <p>Upload any image, set your grid size, and generate a printable scrambled reference sheet for your students.</p>
+</header>
+
+<main>
+
+  <!-- Step 1: Upload -->
+  <div class="card">
+    <div class="card-title"><span class="step-num">1</span> Upload an image</div>
+    <div class="upload-zone" id="upload-zone">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 16l4-4 4 4 4-6 4 6"/><rect x="2" y="3" width="20" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+      </svg>
+      <p><strong>Click to upload</strong> or drag and drop</p>
+      <p>PNG, JPG, GIF, WebP — any image works</p>
+      <input type="file" id="file-input" accept="image/*">
+    </div>
+    <div id="preview-wrap">
+      <img id="preview-img" alt="Preview of uploaded image">
+      <div id="preview-info">
+        <strong id="preview-name"></strong>
+        <span id="preview-dims"></span>
+        <button class="change-link" id="change-btn">Change image</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 2: Settings -->
+  <div class="card">
+    <div class="card-title"><span class="step-num">2</span> Configure the grid</div>
+    <div class="controls-grid">
+      <div class="field">
+        <label>Columns</label>
+        <input type="number" id="cols" min="2" max="8" value="5">
+      </div>
+      <div class="field">
+        <label>Rows</label>
+        <input type="number" id="rows" min="2" max="8" value="5">
+      </div>
+      <div class="field">
+        <label>Label format</label>
+        <select id="label-style">
+          <option value="letter-num">Letter–Number (A3)</option>
+          <option value="num-letter">Number–Letter (3A)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tile size (px)</label>
+        <div class="tile-size-row">
+          <input type="range" id="tile-size" min="80" max="200" value="120" step="10">
+          <span id="tile-size-out">120</span>
+        </div>
+      </div>
+      <div class="field">
+        <label>Grid line color</label>
+        <input type="color" id="line-color" value="#000000">
+      </div>
+      <div class="field">
+        <label>Label background</label>
+        <input type="color" id="label-bg" value="#ffffff">
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3: Generate -->
+  <div class="card">
+    <div class="card-title"><span class="step-num">3</span> Generate &amp; download</div>
+    <p style="font-size:0.88rem;color:var(--muted);margin-bottom:1rem;">Click Generate to scramble the tiles. Re-click for a fresh arrangement. Download exports a print-ready PNG.</p>
+    <div class="btn-row">
+      <button class="btn-primary" id="btn-generate" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Generate mystery grid
+      </button>
+      <button class="btn-secondary" id="btn-download" style="display:none;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download PNG
+      </button>
+    </div>
+    <div id="status-msg"></div>
+  </div>
+
+  <!-- Output -->
+  <div id="output-section">
+    <div class="output-grid">
+      <div class="output-panel">
+        <div class="panel-label">Scrambled reference tiles</div>
+        <div class="canvas-wrap"><canvas id="tiles-canvas"></canvas></div>
+      </div>
+      <div class="output-panel">
+        <div class="panel-label">Blank drawing grid</div>
+        <div class="canvas-wrap"><canvas id="grid-canvas"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- How to use -->
+  <div class="how-to" style="margin-top:2rem;">
+    <h2>How to use this with your class</h2>
+    <ol>
+      <li><strong>Pick an image</strong> — portraits, animals, famous artworks, and line drawings all work great.</li>
+      <li><strong>Set the grid</strong> — larger grids (6×6, 8×8) are more challenging; 4×4 or 5×5 suits beginners.</li>
+      <li><strong>Download and print</strong> — the PNG includes both the scrambled tiles and the blank grid on one sheet.</li>
+      <li><strong>Students draw</strong> — each tile is labeled with its grid coordinate. Students find the matching square on the blank grid and recreate what they see.</li>
+      <li><strong>Tip:</strong> encourage students to look at each tile in isolation and draw only the shapes and lines they see — not what they think the image "should" look like.</li>
+    </ol>
+  </div>
+
+</main>
+
+<footer>
+  Made for art teachers &mdash; free to use and share.
+  <br>Tip: host this file as <code>index.html</code> in a GitHub repository, then enable GitHub Pages under Settings → Pages.
+</footer>
+
+<script>
+const uploadZone = document.getElementById('upload-zone');
+const fileInput  = document.getElementById('file-input');
+const previewWrap = document.getElementById('preview-wrap');
+const previewImg  = document.getElementById('preview-img');
+const previewName = document.getElementById('preview-name');
+const previewDims = document.getElementById('preview-dims');
+const changeBtn   = document.getElementById('change-btn');
+const btnGenerate = document.getElementById('btn-generate');
+const btnDownload = document.getElementById('btn-download');
+const outputSection = document.getElementById('output-section');
+const tilesCanvas = document.getElementById('tiles-canvas');
+const gridCanvas  = document.getElementById('grid-canvas');
+const statusMsg   = document.getElementById('status-msg');
+const tileSizeRange = document.getElementById('tile-size');
+const tileSizeOut   = document.getElementById('tile-size-out');
+
+let uploadedImage = null;
+let currentFileName = '';
+
+tileSizeRange.addEventListener('input', () => { tileSizeOut.textContent = tileSizeRange.value; });
+
+// Upload via click
+uploadZone.addEventListener('click', () => fileInput.click());
+changeBtn.addEventListener('click', () => fileInput.click());
+
+// Drag & drop
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadFile(file);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
+
+function loadFile(file) {
+  currentFileName = file.name;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      uploadedImage = img;
+      previewImg.src = ev.target.result;
+      previewName.textContent = file.name;
+      previewDims.textContent = `${img.width} × ${img.height}px`;
+      uploadZone.style.display = 'none';
+      previewWrap.style.display = 'flex';
+      btnGenerate.disabled = false;
+      outputSection.style.display = 'none';
+      btnDownload.style.display = 'none';
+      statusMsg.textContent = '';
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+btnGenerate.addEventListener('click', generate);
+
+function generate() {
+  if (!uploadedImage) return;
+
+  const cols      = Math.max(2, Math.min(8, parseInt(document.getElementById('cols').value) || 5));
+  const rows      = Math.max(2, Math.min(8, parseInt(document.getElementById('rows').value) || 5));
+  const TILE      = parseInt(tileSizeRange.value) || 120;
+  const lineColor = document.getElementById('line-color').value;
+  const labelBg   = document.getElementById('label-bg').value;
+  const labelFmt  = document.getElementById('label-style').value;
+  const LETTERS   = 'ABCDEFGH';
+
+  function getLabel(r, c) {
+    const letter = LETTERS[r];
+    const num = c + 1;
+    return labelFmt === 'letter-num' ? `${letter}${num}` : `${num}${letter}`;
+  }
+
+  // Build tile list
+  const tiles = [];
+  for (let r = 0; r < rows; r++)
+    for (let c = 0; c < cols; c++)
+      tiles.push({ r, c, label: getLabel(r, c) });
+
+  // Fisher-Yates shuffle
+  for (let i = tiles.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+  }
+
+  const srcW = uploadedImage.width  / cols;
+  const srcH = uploadedImage.height / rows;
+  const PAD  = 8;
+  const LABEL_H = 20;
+  const FONT_SIZE = Math.max(11, Math.round(TILE * 0.12));
+
+  // --- Tiles canvas ---
+  const tilesPerRow = Math.ceil(Math.sqrt(tiles.length * (cols / rows)));
+  const tileRowCount = Math.ceil(tiles.length / tilesPerRow);
+
+  const tCvs = tilesCanvas;
+  tCvs.width  = tilesPerRow * (TILE + PAD) + PAD;
+  tCvs.height = tileRowCount * (TILE + PAD) + PAD;
+  const tCtx = tCvs.getContext('2d');
+  tCtx.fillStyle = '#ffffff';
+  tCtx.fillRect(0, 0, tCvs.width, tCvs.height);
+
+  tiles.forEach((tile, idx) => {
+    const tx = (idx % tilesPerRow) * (TILE + PAD) + PAD;
+    const ty = Math.floor(idx / tilesPerRow) * (TILE + PAD) + PAD;
+
+    tCtx.drawImage(uploadedImage, tile.c * srcW, tile.r * srcH, srcW, srcH, tx, ty, TILE, TILE);
+
+    tCtx.strokeStyle = lineColor;
+    tCtx.lineWidth = 1.5;
+    tCtx.strokeRect(tx + 0.75, ty + 0.75, TILE - 1.5, TILE - 1.5);
+
+    // Label pill
+    tCtx.font = `bold ${FONT_SIZE}px 'DM Sans', sans-serif`;
+    const tw = tCtx.measureText(tile.label).width + 10;
+    const lx = tx + 4, ly = ty + 4;
+    tCtx.fillStyle = labelBg;
+    tCtx.beginPath();
+    tCtx.roundRect(lx, ly, tw, LABEL_H, 4);
+    tCtx.fill();
+    tCtx.strokeStyle = lineColor;
+    tCtx.lineWidth = 0.75;
+    tCtx.stroke();
+    tCtx.fillStyle = lineColor;
+    tCtx.fillText(tile.label, lx + 5, ly + LABEL_H - 5);
+  });
+
+  // --- Blank grid canvas ---
+  const CELL   = Math.round(TILE * 0.78);
+  const HEADER = 28;
+  const SIDE   = 28;
+  const gCvs   = gridCanvas;
+  gCvs.width   = SIDE + cols * CELL + 1;
+  gCvs.height  = HEADER + rows * CELL + 1;
+  const gCtx   = gCvs.getContext('2d');
+  gCtx.fillStyle = '#ffffff';
+  gCtx.fillRect(0, 0, gCvs.width, gCvs.height);
+
+  // Column headers (numbers)
+  gCtx.font = `500 ${Math.max(11, Math.round(CELL * 0.18))}px 'DM Sans', sans-serif`;
+  gCtx.fillStyle = '#444';
+  gCtx.textAlign = 'center';
+  for (let c = 0; c < cols; c++) {
+    gCtx.fillText(c + 1, SIDE + c * CELL + CELL / 2, 18);
+  }
+  // Row headers (letters)
+  for (let r = 0; r < rows; r++) {
+    gCtx.fillText(LETTERS[r], SIDE / 2, HEADER + r * CELL + CELL / 2 + 5);
+  }
+
+  // Grid lines
+  gCtx.strokeStyle = '#bbb';
+  gCtx.lineWidth = 0.75;
+  for (let r = 0; r <= rows; r++) {
+    const y = HEADER + r * CELL;
+    gCtx.beginPath(); gCtx.moveTo(SIDE, y); gCtx.lineTo(SIDE + cols * CELL, y); gCtx.stroke();
+  }
+  for (let c = 0; c <= cols; c++) {
+    const x = SIDE + c * CELL;
+    gCtx.beginPath(); gCtx.moveTo(x, HEADER); gCtx.lineTo(x, HEADER + rows * CELL); gCtx.stroke();
+  }
+
+  outputSection.style.display = 'block';
+  btnDownload.style.display = 'inline-flex';
+  statusMsg.textContent = `Generated ${tiles.length} tiles in a ${cols}×${rows} grid. Click again to re-shuffle.`;
+  outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+btnDownload.addEventListener('click', () => {
+  const MARGIN = 48;
+  const TITLE_H = 64;
+  const LABEL_H = 28;
+  const GAP = 40;
+  const tw = tilesCanvas.width;
+  const gw = gridCanvas.width;
+  const th = tilesCanvas.height;
+  const gh = gridCanvas.height;
+  const contentH = Math.max(th, gh);
+  const totalW = tw + GAP + gw + MARGIN * 2;
+  const totalH = TITLE_H + LABEL_H + contentH + MARGIN * 2;
+
+  const out = document.createElement('canvas');
+  out.width  = totalW;
+  out.height = totalH;
+  const ctx = out.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, totalW, totalH);
+
+  // Title
+  ctx.font = 'bold 32px Georgia, serif';
+  ctx.fillStyle = '#1a1a18';
+  ctx.textAlign = 'center';
+  ctx.fillText('Mystery Grid Drawing', totalW / 2, MARGIN + 36);
+
+  // Panel labels
+  ctx.font = '500 13px sans-serif';
+  ctx.fillStyle = '#7a7468';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCRAMBLED REFERENCE TILES', MARGIN, MARGIN + TITLE_H + 16);
+  ctx.textAlign = 'right';
+  ctx.fillText('BLANK DRAWING GRID', totalW - MARGIN, MARGIN + TITLE_H + 16);
+
+  // Canvases
+  const contentY = MARGIN + TITLE_H + LABEL_H;
+  ctx.drawImage(tilesCanvas, MARGIN, contentY);
+  ctx.drawImage(gridCanvas, MARGIN + tw + GAP, contentY);
+
+  const link = document.createElement('a');
+  const base = currentFileName.replace(/\.[^.]+$/, '') || 'mystery-grid';
+  link.download = `${base}-mystery-grid.png`;
+  link.href = out.toDataURL('image/png');
+  link.click();
+});
+</script>
+</body>
+</html>
