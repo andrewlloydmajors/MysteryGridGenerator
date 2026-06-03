@@ -634,10 +634,27 @@ btnDownload.addEventListener('click', () => {
 document.getElementById('btn-worksheet').addEventListener('click', () => {
   // Landscape letter at 150 DPI: 1650 × 1275
   const PW = 1650, PH = 1275;
-  const SIDE_W = 56;   // left sidebar: just wide enough for rotated text
-  const TOP_H  = 116;  // top strip for directions
+  const SIDE_W = 80;   // sidebar wide enough for readable rotated Name/Period + title
   const M      = 24;   // general margin
   const GAP    = 32;   // gap between tile block and grid
+  const DIR_FONT_SIZE = 19;
+  const DIR_LINE_H    = 29;
+  const DIR_PAD       = 16; // padding above and below directions text
+
+  // ── Measure directions text height first so TOP_H fits exactly ──
+  const directions = 'Directions: Look at each scrambled tile — it has a letter and number label (e.g. B3). Find the matching square on the blank grid and draw exactly what you see in that tile. Work lightly in pencil, one square at a time. Pay attention to line thickness — some lines are thick, some thin, and some vary.';
+  // Use a temp canvas to measure wrap height
+  const measureCtx = document.createElement('canvas').getContext('2d');
+  measureCtx.font = `400 ${DIR_FONT_SIZE}px sans-serif`;
+  const dirMaxW = PW - SIDE_W - M * 2;
+  let lineCount = 1, testLine = '';
+  directions.split(' ').forEach(word => {
+    const test = testLine + word + ' ';
+    if (measureCtx.measureText(test).width > dirMaxW && testLine !== '') {
+      lineCount++; testLine = word + ' ';
+    } else { testLine = test; }
+  });
+  const TOP_H = DIR_PAD + lineCount * DIR_LINE_H + DIR_PAD;
 
   const out = document.createElement('canvas');
   out.width = PW; out.height = PH;
@@ -646,38 +663,36 @@ document.getElementById('btn-worksheet').addEventListener('click', () => {
   ctx.fillRect(0, 0, PW, PH);
 
   // ── LEFT SIDEBAR ──
-  // Vertical rule
   ctx.strokeStyle = '#cccccc';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(SIDE_W, 0); ctx.lineTo(SIDE_W, PH); ctx.stroke();
 
-  // Helper: draw a rotated label + underline in the sidebar
-  // cy = centre y of the label along the page (the text reads upward)
-  // lineLen = length of the underline extending rightward (in rotated space = downward on page)
+  // Helper: rotated label + underline
+  // cx = horizontal centre of sidebar, cy = page-y centre of the field
+  // lineLen = how long the underline is (in rotated space, extends downward on page)
   function sidebarField(label, cy, lineLen) {
     ctx.save();
     ctx.translate(SIDE_W / 2, cy);
     ctx.rotate(-Math.PI / 2);
-    // label text sits to the left of origin; line extends to the right
-    ctx.font = 'bold 22px sans-serif';
+    ctx.font = 'bold 24px sans-serif';
     ctx.fillStyle = '#222';
     ctx.textAlign = 'right';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(label, -6, 0);
-    ctx.strokeStyle = '#999';
+    ctx.fillText(label, -8, 0);
+    ctx.strokeStyle = '#888';
     ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.moveTo(0, 6); ctx.lineTo(lineLen, 6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, 7); ctx.lineTo(lineLen, 7); ctx.stroke();
     ctx.restore();
   }
 
-  // Name line — top quarter of sidebar
-  sidebarField('Name', PH * 0.12, 210);
-  // Period line — just below Name
-  sidebarField('Period', PH * 0.25, 120);
+  // Name — occupies roughly the top 18% of the page height
+  sidebarField('Name', PH * 0.09, 240);
+  // Period — next band down
+  sidebarField('Period', PH * 0.21, 130);
 
-  // "Mystery Grid Drawing" title — rotated, centred in lower 2/3 of sidebar
+  // "Mystery Grid Drawing" title — centred in the lower 2/3 of the sidebar
   ctx.save();
-  ctx.translate(SIDE_W / 2, PH * 0.65);
+  ctx.translate(SIDE_W / 2, PH * 0.64);
   ctx.rotate(-Math.PI / 2);
   ctx.font = 'bold 28px Georgia, serif';
   ctx.fillStyle = '#1a1a18';
@@ -686,17 +701,16 @@ document.getElementById('btn-worksheet').addEventListener('click', () => {
   ctx.fillText('Mystery Grid Drawing', 0, 0);
   ctx.restore();
 
-  // ── TOP STRIP (directions) ──
+  // ── TOP STRIP (directions) — height is exactly what the text needs ──
   ctx.strokeStyle = '#cccccc';
   ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(SIDE_W, TOP_H); ctx.lineTo(PW, TOP_H); ctx.stroke();
 
-  const directions = 'Directions: Look at each scrambled tile — it has a letter and number label (e.g. B3). Find the matching square on the blank grid and draw exactly what you see in that tile. Work lightly in pencil, one square at a time. Pay attention to line thickness — some lines are thick, some thin, and some vary.';
-  ctx.font = '400 18px sans-serif';
+  ctx.font = `400 ${DIR_FONT_SIZE}px sans-serif`;
   ctx.fillStyle = '#111';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  wrapText(ctx, directions, SIDE_W + M, 14, PW - SIDE_W - M * 2, 27);
+  wrapText(ctx, directions, SIDE_W + M, DIR_PAD, dirMaxW, DIR_LINE_H);
 
   // ── CONTENT AREA ──
   const contentX = SIDE_W + M;
